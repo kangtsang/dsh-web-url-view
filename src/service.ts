@@ -65,6 +65,25 @@ function isTrustedOrigin(origin: string): boolean {
 }
 
 /**
+ * Whether one string parses as an absolute URL whose scheme is a network
+ * scheme (`http:`/`https:`). A caller that gets `true` here may only mint for
+ * it when {@link isTrustedOrigin} also agrees; a caller that gets `false` for
+ * a *parseable* URL is looking at a custom scheme (the desktop shell serves
+ * its page from one, e.g. `dsh-app://app`) and must substitute the Host's own
+ * origin instead.
+ * @param origin - origin string as reported by the page.
+ * @returns whether the string is a parseable http(s) URL.
+ */
+function isNetworkOrigin(origin: string): boolean {
+  try {
+    const protocol = new URL(origin).protocol
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
  * The `webUrlView` Remote service: mints the current authenticated GUI URL
  * for one trusted browser origin.
  */
@@ -102,6 +121,40 @@ export class WebUrlViewService extends TypertRemoteService {
   }
 
   /**
+   * The origin to mint for, given what the page reported.
+   *
+   * The desktop shell serves its page from a custom Electron scheme
+   * (`dsh-app://app`), which no browser can open and which carries no
+   * authority this Host can authenticate. That page still reaches the real
+   * listener over loopback, so the Host's own origin is the address to mint —
+   * the one address a browser on this machine can always open.
+   *
+   * A *network* origin the page reports is still held to
+   * {@link isTrustedOrigin}, so a page served from an untrusted address cannot
+   * borrow this process's launch token.
+   * @param reported - origin as the page reported it.
+   * @returns the origin to mint an authenticated URL for.
+   */
+  private mintOrigin(reported: string): string {
+    if (isTrustedOrigin(reported)) return reported
+    // A parseable but untrusted network origin is a refusal, not a fallback:
+    // minting the loopback URL would hand this process's token to whoever
+    // served that page.
+    if (isNetworkOrigin(reported)) {
+      throw new Error(`webUrlView: origin rejected (must be a loopback or private-LAN http(s) origin): ${reported}`)
+    }
+    // The page runs under a non-network scheme (the desktop shell). Read
+    // `webServer` lazily: the service activates on `connection` alone, so a
+    // composition that serves no HTTP listener still mounts and still answers
+    // every network-origin request above.
+    const webServer = this.ctx.get('webServer') as { protocol: string, port: number } | undefined
+    if (webServer === undefined) {
+      throw new Error(`webUrlView: the page reported the non-network origin ${reported}, but this Host serves no web listener to mint for`)
+    }
+    return `${webServer.protocol}//127.0.0.1:${String(webServer.port)}`
+  }
+
+  /**
    * Mint the launch-token URL for the origin the browser reported.
    * Read-only: touches no configuration and mutates no registry.
    * @param origin - absolute origin from `window.location.origin`.
@@ -112,20 +165,17 @@ export class WebUrlViewService extends TypertRemoteService {
     // dispatches to the same instance the plugin body attached the fixed
     // entry to.
     console.info(`[dsh-web-url-view] current(${origin}) on instance ${instanceId(this)}`)
-    if (!isTrustedOrigin(origin)) {
-      // Reject loudly: an untrusted origin must never reach token minting.
-      throw new Error(`webUrlView: origin rejected (must be a loopback or private-LAN http(s) origin): ${origin}`)
-    }
+    const target = this.mintOrigin(origin)
     let url: string
     try {
-      url = this.ctx.connection.authenticatedUrl(origin)
+      url = this.ctx.connection.authenticatedUrl(target)
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
-      throw new Error(`webUrlView: could not mint the authenticated URL for ${origin}: ${reason}`)
+      throw new Error(`webUrlView: could not mint the authenticated URL for ${target}: ${reason}`)
     }
-    // The URLs carry a session secret; only the origin is logged.
+    // The URLs carry a session secret; only the origins are logged.
     const fixedUrl = this.fixed?.url ?? null
-    console.info(`[dsh-web-url-view] current() for ${origin}: url minted, fixedUrl=${fixedUrl ?? 'null'}`)
+    console.info(`[dsh-web-url-view] current() for ${origin} (minting ${target}): url minted, fixedUrl=${fixedUrl ?? 'null'}`)
     return { url, fixedUrl }
   }
 

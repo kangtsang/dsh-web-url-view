@@ -52,6 +52,22 @@ export declare class WebUrlViewService extends TypertRemoteService {
      */
     attachFixed(fixed: FixedEntryFace | null): void;
     /**
+     * The origin to mint for, given what the page reported.
+     *
+     * The desktop shell serves its page from a custom Electron scheme
+     * (`dsh-app://app`), which no browser can open and which carries no
+     * authority this Host can authenticate. That page still reaches the real
+     * listener over loopback, so the Host's own origin is the address to mint —
+     * the one address a browser on this machine can always open.
+     *
+     * A *network* origin the page reports is still held to
+     * {@link isTrustedOrigin}, so a page served from an untrusted address cannot
+     * borrow this process's launch token.
+     * @param reported - origin as the page reported it.
+     * @returns the origin to mint an authenticated URL for.
+     */
+    private mintOrigin;
+    /**
      * Mint the launch-token URL for the origin the browser reported.
      * Read-only: touches no configuration and mutates no registry.
      * @param origin - absolute origin from `window.location.origin`.

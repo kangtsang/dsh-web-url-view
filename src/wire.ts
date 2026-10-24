@@ -52,6 +52,12 @@ export const ORIGIN_SCHEMA = z.string()
  * host `TYPERT` manifest and the client `TypertRemoteContribution`.
  * Hand-written in the exact shape the Typert generator emits; validated by
  * the typert loader and the client registry at mount time.
+ *
+ * Both strict codecs carry `create(): TypertSchema` — a factory, not a
+ * prebuilt schema — because the registry, the loader, and the client
+ * contribution mount all demand that shape and call the factory at the
+ * boundary. Each factory hands back the module-level schema, so parsing still
+ * costs no extra allocation.
  */
 export const CURRENT_URL_DESCRIPTOR = Object.freeze({
   id: 'dsh-web-url-view#webUrlView/current',
@@ -66,13 +72,13 @@ export const CURRENT_URL_DESCRIPTOR = Object.freeze({
     codec: Object.freeze({
       mode: 'strict',
       typeSymbol: 'dsh-web-url-view/types#origin',
-      schema: ORIGIN_SCHEMA,
+      create: () => ORIGIN_SCHEMA,
     }),
   })]),
   result: Object.freeze({
     mode: 'strict',
     typeSymbol: 'dsh-web-url-view/types#WebUrlViewResult',
-    schema: WEB_URL_VIEW_RESULT_SCHEMA,
+    create: () => WEB_URL_VIEW_RESULT_SCHEMA,
   }),
   sourceLocation: Object.freeze({ file: 'src/wire.ts', line: 1, column: 1 }),
 } as const) satisfies InvocationDescriptor

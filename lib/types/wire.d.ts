@@ -60,13 +60,13 @@ export declare const CURRENT_URL_DESCRIPTOR: Readonly<{
         codec: Readonly<{
             mode: "strict";
             typeSymbol: "dsh-web-url-view/types#origin";
-            schema: z.ZodString;
+            create: () => z.ZodString;
         }>;
     }>[];
     readonly result: Readonly<{
         mode: "strict";
         typeSymbol: "dsh-web-url-view/types#WebUrlViewResult";
-        schema: z.ZodObject<{
+        create: () => z.ZodObject<{
             url: z.ZodString;
             fixedUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>;
@@ -93,13 +93,13 @@ export declare const WEB_URL_VIEW_INVOCATIONS: readonly Readonly<{
         codec: Readonly<{
             mode: "strict";
             typeSymbol: "dsh-web-url-view/types#origin";
-            schema: z.ZodString;
+            create: () => z.ZodString;
         }>;
     }>[];
     readonly result: Readonly<{
         mode: "strict";
         typeSymbol: "dsh-web-url-view/types#WebUrlViewResult";
-        schema: z.ZodObject<{
+        create: () => z.ZodObject<{
             url: z.ZodString;
             fixedUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>;

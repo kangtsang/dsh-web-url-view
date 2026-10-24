@@ -25,6 +25,13 @@ declare module '@deepseek-ai/cordis' {
             host: string;
             /** Listening port of the served GUI. */
             port: number;
+            /**
+             * Protocol the listener speaks (`'http:'` or `'https:'`). The service
+             * reads it when the page reports a non-network origin (the desktop
+             * shell serves its page from `dsh-app://app`) and the Host's own
+             * loopback origin has to be minted instead.
+             */
+            protocol: string;
         };
     }
 }
